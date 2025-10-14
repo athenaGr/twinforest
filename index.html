@@ -14,129 +14,84 @@
     
     <script type="text/processing">
     
-
-// Canvas settings
-int W = 900, H = 900;
-float noiseScale = 0.012f;
-float t = 1.0f;
-int mushroomCount = 40;
-int treeCount = 8;
-int pixelDots = 3800;
+int cols, rows;
+float noiseScale = 0.01;
+float t = 0;
 
 void setup() {
-  size(900, 900);
-  smooth(8);
-  colorMode(HSB, 360, 100, 100, 100);
-  noLoop();
+  size(1600, 900);
+  cols = width;
+  rows = height;
+  noStroke();
+  colorMode(HSB, 360, 100, 100);
+  background(0);
 }
 
 void draw() {
   background(0);
-  randomSeed(123456);
-
-  // --- mycelium-like pixel field ---
-  for (int i = 0; i < pixelDots; i++) {
+  randomSeed(1); // stable layout
+  t += 0.005;
+  
+  // glowing pixel field
+  for (int i = 0; i < 4000; i++) {
     float x = random(width);
     float y = random(height);
-    float n = noise(x * noiseScale, y * noiseScale, t * 0.2f);
-    float hue = map(n, 0, 1, 10, 30);
-    float sat = map(n, 0, 1, 50, 100);
-    float bright = map(n, 0, 1, 30, 100);
-    float alpha = map(n, 0, 1, 10, 90);
-    fill(hue, sat, bright, alpha);
-    noStroke();
-    if (random(1) < 0.7f) ellipse(x, y, random(2, 4), random(2, 4));
-    else rect(x, y, 3, 3);
+    float n = noise(x * noiseScale, y * noiseScale, t);
+    float br = pow(n, 3.0) * 360;
+    float s = map(n, 0, 1, 40, 100);
+    fill(br, s, 100, 80);
+    
+    float r = random(1);
+    if (r < 0.7) ellipse(x, y, random(1, 3), random(1, 3)); // mycelium dots
+    else if (r < 0.9) rect(x, y, 2, 2); // pixel specks
   }
 
-  // --- bottom ground ---
-  int cell = 6;
-  for (int gx = 0; gx < width; gx += cell) {
-    for (int gy = height / 2; gy < height; gy += cell) {
-      float n = noise(gx * 0.02f, gy * 0.02f, t * 0.08f);
-      if (n > 0.6f) {
-        float hue = map(n, 0.6f, 1, 8, 26);
-        float sat = 92;
-        float bright = map(n, 0.6f, 1, 40, 95);
-        fill(hue, sat, bright, 85);
-        rect(gx, gy, cell - 1, cell - 1);
-      }
-    }
+  // mushroom clusters
+  for (int i = 0; i < 40; i++) {
+    drawMushroom(random(width), random(height * 0.5, height * 0.9), random(15, 40));
   }
 
-  // --- mushrooms ---
-  for (int i = 0; i < mushroomCount; i++) {
-    float x = random(width);
-    float y = random(height * 0.5f, height * 0.95f);
-    drawMushroom(x, y, random(15, 45));
-  }
-
-  // --- leaves (pot controlled) ---
-  int effectiveLeaves = constrain(leafCount, 0, 1023);
-  for (int i = 0; i < effectiveLeaves; i++) {
+  // leaf-like particles
+  for (int i = 0; i < 150; i++) {
     float x = random(width);
     float y = random(height);
     pushMatrix();
     translate(x, y);
-    rotate(noise(x * 0.02f, y * 0.02f, t * 0.2f) * TWO_PI);
-    drawLeaf(random(10, 20));
+    rotate(noise(x * 0.02, y * 0.02) * TWO_PI);
+    drawLeaf(random(8, 20));
     popMatrix();
   }
 
-  // --- trees ---
-  for (int i = 0; i < treeCount; i++) {
-    float x = map(i, 0, treeCount - 1, 50, width - 50) + random(-30, 30);
-    float h = random(100, 240);
-    drawTree(x, height * 0.8f, h);
-  }
-
-  // UI overlay
-  fill(0, 0, 100, 90);
-  rect(10, 10, 300, 30);
-  fill(0);
-  textAlign(LEFT, CENTER);
-  text("Potentiometer: " + pot1Value + " → Leaves: " + leafCount, 20, 25);
-}
-
-void serialEvent(Serial p) {
-  String s = p.readStringUntil('\n');
-  if (s == null) return;
-  s = trim(s);
-  if (s.length() == 0) return;
-
-  try {
-    int v = Integer.parseInt(s);
-    v = constrain(v, 0, 1023);
-    pot1Value = v;
-    leafCount = pot1Value;
-    if (pot1Value != lastPot) {
-      lastPot = pot1Value;
-      newData = true;
-      redraw();
-    }
-  } 
-  catch (Exception e) {
-    println("Serial parse error: " + s);
+  // tree silhouettes (abstract)
+  for (int i = 0; i < 8; i++) {
+    float x = random(width);
+    float h = random(80, 200);
+    drawTree(x, height * 0.75, h);
   }
 }
 
-// ---------- elements ----------
+// ---------------------------------------------------------
+// Organic elements
+// ---------------------------------------------------------
 void drawMushroom(float x, float y, float s) {
   pushMatrix();
   translate(x, y);
-  noStroke();
-  float capHue = random(8, 28);
-  fill(capHue, 95, 92, 92);
-  ellipse(0, -s * 0.38, s, s * 0.5);
-  fill(40, 18, 95, 95);
-  rect(-s * 0.1, 0, s * 0.2, -s * 0.55, s * 0.05);
+  fill(20 + random(40), 100, 100);
+  ellipse(0, -s * 0.4, s, s * 0.4); // cap
+  fill(40, 80, 80);
+  rect(-s * 0.1, 0, s * 0.2, -s * 0.4); // stem
+
+  // glow
+  for (int i = 0; i < 20; i++) {
+    float a = map(i, 0, 20, 20, 0);
+    fill(20 + random(60), 80, 100, a);
+    ellipse(0, -s * 0.4, s * 1.5, s * 0.6);
+  }
   popMatrix();
 }
 
 void drawLeaf(float s) {
-  noStroke();
-  float hue = random(80, 150);
-  fill(hue, 70, 90, 95);
+  fill(100 + random(60), 80, 100);
   beginShape();
   vertex(0, 0);
   bezierVertex(s * 0.5, -s, s, 0, 0, s);
@@ -147,33 +102,25 @@ void drawLeaf(float s) {
 void drawTree(float x, float y, float h) {
   pushMatrix();
   translate(x, y);
-  stroke(30, 80, 60);
-  strokeWeight(4);
-  drawBranch(h, 6);
+  stroke(30, 80, 70);
+  strokeWeight(2);
+  drawBranch(h);
   popMatrix();
 }
 
-void drawBranch(float len, int depth) {
-  if (len < 8 || depth <= 0) {
-    noStroke();
-    fill(30, 90, 50, 95);
-    ellipse(0, 0, 8, 4);
-    return;
-  }
-  stroke(30, 80, 60);
-  strokeWeight(map(depth, 1, 6, 1.5, 5));
+void drawBranch(float len) {
+  if (len < 8) return;
   line(0, 0, 0, -len);
   translate(0, -len);
   pushMatrix();
-  rotate(radians(18 + random(-8, 8)));
-  drawBranch(len * 0.7, depth - 1);
+  rotate(radians(20 + random(-10, 10)));
+  drawBranch(len * 0.7);
   popMatrix();
   pushMatrix();
-  rotate(radians(-18 + random(-8, 8)));
-  drawBranch(len * 0.7, depth - 1);
+  rotate(radians(-20 + random(-10, 10)));
+  drawBranch(len * 0.7);
   popMatrix();
 }
-
     </script>
     <canvas id="sketch" style="border: 1px solid black;"></canvas>
     
