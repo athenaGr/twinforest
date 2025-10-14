@@ -14,7 +14,165 @@
     
     <script type="text/processing">
     
-      /*  INSERT CODE HERE */
+
+// Canvas settings
+int W = 900, H = 900;
+float noiseScale = 0.012f;
+float t = 1.0f;
+int mushroomCount = 40;
+int treeCount = 8;
+int pixelDots = 3800;
+
+void setup() {
+  size(900, 900);
+  smooth(8);
+  colorMode(HSB, 360, 100, 100, 100);
+  noLoop();
+}
+
+void draw() {
+  background(0);
+  randomSeed(123456);
+
+  // --- mycelium-like pixel field ---
+  for (int i = 0; i < pixelDots; i++) {
+    float x = random(width);
+    float y = random(height);
+    float n = noise(x * noiseScale, y * noiseScale, t * 0.2f);
+    float hue = map(n, 0, 1, 10, 30);
+    float sat = map(n, 0, 1, 50, 100);
+    float bright = map(n, 0, 1, 30, 100);
+    float alpha = map(n, 0, 1, 10, 90);
+    fill(hue, sat, bright, alpha);
+    noStroke();
+    if (random(1) < 0.7f) ellipse(x, y, random(2, 4), random(2, 4));
+    else rect(x, y, 3, 3);
+  }
+
+  // --- bottom ground ---
+  int cell = 6;
+  for (int gx = 0; gx < width; gx += cell) {
+    for (int gy = height / 2; gy < height; gy += cell) {
+      float n = noise(gx * 0.02f, gy * 0.02f, t * 0.08f);
+      if (n > 0.6f) {
+        float hue = map(n, 0.6f, 1, 8, 26);
+        float sat = 92;
+        float bright = map(n, 0.6f, 1, 40, 95);
+        fill(hue, sat, bright, 85);
+        rect(gx, gy, cell - 1, cell - 1);
+      }
+    }
+  }
+
+  // --- mushrooms ---
+  for (int i = 0; i < mushroomCount; i++) {
+    float x = random(width);
+    float y = random(height * 0.5f, height * 0.95f);
+    drawMushroom(x, y, random(15, 45));
+  }
+
+  // --- leaves (pot controlled) ---
+  int effectiveLeaves = constrain(leafCount, 0, 1023);
+  for (int i = 0; i < effectiveLeaves; i++) {
+    float x = random(width);
+    float y = random(height);
+    pushMatrix();
+    translate(x, y);
+    rotate(noise(x * 0.02f, y * 0.02f, t * 0.2f) * TWO_PI);
+    drawLeaf(random(10, 20));
+    popMatrix();
+  }
+
+  // --- trees ---
+  for (int i = 0; i < treeCount; i++) {
+    float x = map(i, 0, treeCount - 1, 50, width - 50) + random(-30, 30);
+    float h = random(100, 240);
+    drawTree(x, height * 0.8f, h);
+  }
+
+  // UI overlay
+  fill(0, 0, 100, 90);
+  rect(10, 10, 300, 30);
+  fill(0);
+  textAlign(LEFT, CENTER);
+  text("Potentiometer: " + pot1Value + " → Leaves: " + leafCount, 20, 25);
+}
+
+void serialEvent(Serial p) {
+  String s = p.readStringUntil('\n');
+  if (s == null) return;
+  s = trim(s);
+  if (s.length() == 0) return;
+
+  try {
+    int v = Integer.parseInt(s);
+    v = constrain(v, 0, 1023);
+    pot1Value = v;
+    leafCount = pot1Value;
+    if (pot1Value != lastPot) {
+      lastPot = pot1Value;
+      newData = true;
+      redraw();
+    }
+  } 
+  catch (Exception e) {
+    println("Serial parse error: " + s);
+  }
+}
+
+// ---------- elements ----------
+void drawMushroom(float x, float y, float s) {
+  pushMatrix();
+  translate(x, y);
+  noStroke();
+  float capHue = random(8, 28);
+  fill(capHue, 95, 92, 92);
+  ellipse(0, -s * 0.38, s, s * 0.5);
+  fill(40, 18, 95, 95);
+  rect(-s * 0.1, 0, s * 0.2, -s * 0.55, s * 0.05);
+  popMatrix();
+}
+
+void drawLeaf(float s) {
+  noStroke();
+  float hue = random(80, 150);
+  fill(hue, 70, 90, 95);
+  beginShape();
+  vertex(0, 0);
+  bezierVertex(s * 0.5, -s, s, 0, 0, s);
+  bezierVertex(-s, 0, -s * 0.5, -s, 0, 0);
+  endShape(CLOSE);
+}
+
+void drawTree(float x, float y, float h) {
+  pushMatrix();
+  translate(x, y);
+  stroke(30, 80, 60);
+  strokeWeight(4);
+  drawBranch(h, 6);
+  popMatrix();
+}
+
+void drawBranch(float len, int depth) {
+  if (len < 8 || depth <= 0) {
+    noStroke();
+    fill(30, 90, 50, 95);
+    ellipse(0, 0, 8, 4);
+    return;
+  }
+  stroke(30, 80, 60);
+  strokeWeight(map(depth, 1, 6, 1.5, 5));
+  line(0, 0, 0, -len);
+  translate(0, -len);
+  pushMatrix();
+  rotate(radians(18 + random(-8, 8)));
+  drawBranch(len * 0.7, depth - 1);
+  popMatrix();
+  pushMatrix();
+  rotate(radians(-18 + random(-8, 8)));
+  drawBranch(len * 0.7, depth - 1);
+  popMatrix();
+}
 
     </script>
     <canvas id="sketch" style="border: 1px solid black;"></canvas>
