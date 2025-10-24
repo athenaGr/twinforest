@@ -1,23 +1,20 @@
-// === Arduino: Potentiometer to Serial ===
-// Connect three potentiometers to A0, A1, A2 (middle pin → analog in, sides → 5V and GND)
-
 void setup() {
   Serial.begin(9600);
 }
 
 void loop() {
-  int pot1 = analogRead(A0); // Growth speed
-  int pot2 = analogRead(A1); // Saturation
-  int pot3 = analogRead(A2); // Fade
- int pot4 = analogRead(A3); // Fade
-  // Send as comma-separated values
+  int pot1 = analogRead(A0);
+  int pot2 = analogRead(A1);
+  int pot3 = analogRead(A2);
+  int pot4 = analogRead(A3);
+
   Serial.print(pot1);
- Serial.print(",");
- Serial.print(pot2);
   Serial.print(",");
-  Serial.println(pot3);
-   Serial.print(",");
+  Serial.print(pot2);
+  Serial.print(",");
+  Serial.print(pot3);
+  Serial.print(",");
   Serial.println(pot4);
 
-  delay(50); // smooth output
+  delay(50);
 }
